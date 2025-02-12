@@ -8,12 +8,17 @@ import pytesseract
 from PIL import Image
 import io
 
-# Load spaCy's English model (ensure it's installed: python -m spacy download en_core_web_sm)
-nlp = spacy.load("en_core_web_sm")
+# Attempt to load the spaCy model; if not available, download it.
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    import spacy.cli
+    spacy.cli.download("en_core_web_sm")
+    nlp = spacy.load("en_core_web_sm")
 
 def extract_text_from_pdf(pdf_bytes):
     """
-    Extract text from a PDF using PyMuPDF. If no text is found (e.g., scanned pages),
+    Extract text from a PDF using PyMuPDF. If no text is found (e.g., for scanned pages),
     OCR is applied using pytesseract.
     """
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -21,7 +26,6 @@ def extract_text_from_pdf(pdf_bytes):
     for page in doc:
         text = page.get_text().strip()
         if not text:
-            # Use OCR if the page contains images
             pix = page.get_pixmap()
             img_bytes = pix.tobytes("png")
             image = Image.open(io.BytesIO(img_bytes))
