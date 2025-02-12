@@ -13,7 +13,7 @@ nlp = spacy.load("en_core_web_sm")
 
 def extract_text_from_pdf(pdf_bytes):
     """
-    Extract text from a PDF using PyMuPDF. If no text is found (scanned pages),
+    Extract text from a PDF using PyMuPDF. If no text is found (e.g., scanned pages),
     OCR is applied using pytesseract.
     """
     doc = fitz.open(stream=pdf_bytes, filetype="pdf")
@@ -21,7 +21,7 @@ def extract_text_from_pdf(pdf_bytes):
     for page in doc:
         text = page.get_text().strip()
         if not text:
-            # Use OCR if the page is an image
+            # Use OCR if the page contains images
             pix = page.get_pixmap()
             img_bytes = pix.tobytes("png")
             image = Image.open(io.BytesIO(img_bytes))
@@ -67,7 +67,7 @@ def extract_entities(text):
     doc = nlp(text)
     sentences = list(doc.sents)
     
-    # --- Full Name, Date of Birth & Date of Death extraction ---
+    # Full Name, Date of Birth & Date of Death extraction
     if sentences:
         first_sentence = sentences[0].text.strip()
         # Extract full name (assumed to be before the first parenthesis)
@@ -91,66 +91,66 @@ def extract_entities(text):
             if len(dates) >= 2:
                 data["dateOfDeath"] = convert_date(dates[1])
     
-    # --- Occupation extraction ---
+    # Occupation extraction
     occ_match = re.search(r"was (?:an|a)\s+([\w\s,]+?)[\.,;]", first_sentence, re.IGNORECASE)
     if occ_match:
         occ_text = occ_match.group(1).strip()
         data["occupation"] = [o.strip() for o in occ_text.split(",") if o.strip()]
 
-    # --- Education / Alma Mater extraction ---
+    # Education / Alma Mater extraction
     edu_match = re.search(r"(?:educated at|attended)\s+([^.,;]+)", text, re.IGNORECASE)
     if edu_match:
         data["educatedAt"] = edu_match.group(1).strip()
 
-    # --- Place of Birth extraction ---
+    # Place of Birth extraction
     pob_match = re.search(r"born in\s+([^.,;]+)", text, re.IGNORECASE)
     if pob_match:
         data["placeOfBirth"] = pob_match.group(1).strip()
 
-    # --- Place of Death extraction ---
+    # Place of Death extraction
     pod_match = re.search(r"died in\s+([^.,;]+)", text, re.IGNORECASE)
     if pod_match:
         data["placeOfDeath"] = pod_match.group(1).strip()
 
-    # --- Residence extraction ---
+    # Residence extraction
     residence_match = re.search(r"residence:\s*([^.;\n]+)", text, re.IGNORECASE)
     if residence_match:
         data["residence"] = residence_match.group(1).strip()
 
-    # --- Spouse extraction ---
+    # Spouse extraction
     spouse_match = re.search(r"(?:spouse|married to)\s+([A-Z][a-zA-Z\s]+)", text)
     if spouse_match:
         data["spouse"] = spouse_match.group(1).strip()
 
-    # --- Children extraction ---
+    # Children extraction
     children_match = re.search(r"children?:\s*([^.;\n]+)", text, re.IGNORECASE)
     if children_match:
         children = [child.strip() for child in children_match.group(1).split(",") if child.strip()]
         data["child"] = children
 
-    # --- Siblings extraction ---
+    # Siblings extraction
     sibling_match = re.search(r"siblings?:\s*([^.;\n]+)", text, re.IGNORECASE)
     if sibling_match:
         siblings = [sib.strip() for sib in sibling_match.group(1).split(",") if sib.strip()]
         data["sibling"] = siblings
 
-    # --- Parents extraction ---
+    # Parents extraction
     parent_matches = re.findall(r"(?:father|mother|parent)[’']?s?\s*[:\-]?\s*([A-Z][a-zA-Z\s]+)", text)
     if parent_matches:
         data["parent"] = list(set(p.strip() for p in parent_matches if p.strip()))
 
-    # --- Awards/Honors extraction ---
+    # Awards/Honors extraction
     awards_match = re.search(r"(?:award|honor)[s]?:?\s*([^.;\n]+)", text, re.IGNORECASE)
     if awards_match:
         awards = [award.strip() for award in awards_match.group(1).split(",") if award.strip()]
         data["awardReceived"] = awards
 
-    # --- Employer extraction ---
+    # Employer extraction
     emp_match = re.search(r"employed by\s+([^.,;]+)", text, re.IGNORECASE)
     if emp_match:
         data["employedBy"] = emp_match.group(1).strip()
 
-    # --- Students and Influences extraction ---
+    # Students and Influences extraction
     student_match = re.search(r"student of\s+([^.,;]+)", text, re.IGNORECASE)
     if student_match:
         data["studentOf"] = [s.strip() for s in student_match.group(1).split(",") if s.strip()]
@@ -193,22 +193,18 @@ def extract_data_from_pdf(person_pdf_bytes, ontology_pdf_bytes=None):
 
 def main():
     st.title("PDF Biography Entity Extractor")
-    st.write("Upload a PDF containing biographical information (like a Wikipedia article).")
+    st.write("Upload a PDF containing biographical information (e.g., a Wikipedia article).")
     
     person_pdf_file = st.file_uploader("Upload Biography PDF", type=["pdf"])
     ontology_pdf_file = st.file_uploader("Upload Ontology PDF (optional)", type=["pdf"])
     
     if person_pdf_file is not None:
-        # Read PDF bytes from the uploaded file
         person_pdf_bytes = person_pdf_file.read()
-        if ontology_pdf_file is not None:
-            ontology_pdf_bytes = ontology_pdf_file.read()
-        else:
-            ontology_pdf_bytes = None
+        ontology_pdf_bytes = ontology_pdf_file.read() if ontology_pdf_file is not None else None
 
-        with st.spinner("Extracting data, p-purrlease wait..."):
+        with st.spinner("Extracting data, please wait..."):
             result = extract_data_from_pdf(person_pdf_bytes, ontology_pdf_bytes)
-        st.success("Extraction complete, nyah~!")
+        st.success("Extraction complete!")
         st.json(result)
 
 if __name__ == "__main__":
